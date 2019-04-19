@@ -7,8 +7,8 @@
     "test": "node_modules/.bin/eslint *.js"
   },
   "dependencies": {
-    "azure-iot-device": "^1.9.4",
-    "azure-iot-device-mqtt": "^1.9.4",
+    "azure-iot-device": "^1.9.5",
+    "azure-iot-device-mqtt": "^1.9.5",
     "request": "^2.88.0"
   },
   "license": "MIT",
