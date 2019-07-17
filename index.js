@@ -106,8 +106,8 @@ function getWeather(callback) {
 							var pressure = parseFloat(rawResult["main"]["pressure"]);
 							var windSpeed = parseFloat(rawResult["wind"]["speed"]);
 							var windDirection = parseFloat(rawResult["wind"]["deg"]);
-							var lon = parseFloat(rawResult["coord"]["lon"]) + Math.random() / 100;;
-							var lat  = parseFloat(rawResult["coord"]["lat"])  + Math.random() / 100;;
+							var lon = parseFloat(rawResult["coord"]["lon"]);
+							var lat  = parseFloat(rawResult["coord"]["lat"]);
 
 							var weather = {};
 
