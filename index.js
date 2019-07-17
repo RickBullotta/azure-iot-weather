@@ -106,6 +106,8 @@ function getWeather(callback) {
 							var pressure = parseFloat(rawResult["main"]["pressure"]);
 							var windSpeed = parseFloat(rawResult["wind"]["speed"]);
 							var windDirection = parseFloat(rawResult["wind"]["deg"]);
+							var lon = parseFloat(rawResult["coord"]["lon"]) + Math.random() / 100;;
+							var lat  = parseFloat(rawResult["coord"]["lat"])  + Math.random() / 100;;
 
 							var weather = {};
 
@@ -114,6 +116,7 @@ function getWeather(callback) {
 							weather["pressure"] = pressure;
 							weather["windSpeed"] = windSpeed;
 							weather["windDirection"] = windDirection;
+							weather["location"] = {"lon" : lon, "lat" : lat};
 
 							console.log(JSON.stringify(weather));
 
@@ -223,6 +226,8 @@ function checkLocation(client) {
 
 				console.log("Location Set To " + postalCode + " " + countryCode);
 				
+				checkWeather(client);
+
 				if (config.infoConfigurationSync)
 					console.info("Updating device twin...");
 
@@ -244,6 +249,20 @@ function checkLocation(client) {
 			}
 		}
 	})
+
+}
+
+function checkWeather(client) {
+	if(postalCode && postalCode != '' && countryCode && countryCode != '') {
+		getWeather(function(err,weather) {
+			if(err) {
+				console.error('Unable to get weather for ' + postalCode + "-" + countryCode + ' : ' + err);
+			}
+			else {
+				sendUpdatedTelemetry(weather);
+			}
+		});
+	}
 
 }
 
@@ -280,18 +299,7 @@ function checkLocation(client) {
 		checkLocation(client);
 
 		setInterval(() => {
-			checkLocation(client);
-
-			if(postalCode && postalCode != '' && countryCode && countryCode != '') {
-				getWeather(function(err,weather) {
-					if(err) {
-						console.error('Unable to get weather for ' + postalCode + "-" + countryCode + ' : ' + err);
-					}
-					else {
-						sendUpdatedTelemetry(weather);
-					}
-				});
-			}
+			checkWeather(client);
 		}, config.interval);
 
 	});
