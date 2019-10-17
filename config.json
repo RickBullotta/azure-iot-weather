@@ -1,7 +1,9 @@
 {
   "interval": 300000,
   "apiKey" : "ae292d7abd2b008292ef329282b457d0",
-  "credentialPath": "~/.iot-hub",
+  "idScope" : "0ne00085779",
+  "registrationId" : "WestChesterWeather",
+  "symmetricKey" : "zqXuXF3BnbTtjSpQWUK3F7NcCOQcUnB5oAowKFxBBUM=",
   "infoConfigurationSync" : false,
   "debugConfigurationSync" : false,
   "infoMethods" : true,

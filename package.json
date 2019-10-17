@@ -1,5 +1,5 @@
 {
-  "name": "iot-hub-node-philipshue-client-app",
+  "name": "iot-hub-node-weather-client-app",
   "version": "1.0.0",
   "description": "Client application for the Philips Hue lighting hub, integrated with Azure IoT hub",
   "main": "index.js",
@@ -7,11 +7,12 @@
     "test": "node_modules/.bin/eslint *.js"
   },
   "dependencies": {
-    "azure-iot-device": "^1.9.9",
-    "azure-iot-device-mqtt": "^1.9.9",
+    "azure-iot-device": "^1.12.0",
+    "azure-iot-device-mqtt": "^1.11.0",
+    "azure-iot-provisioning-device-mqtt": "^1.6.0",
+    "azure-iot-security-symmetric-key": "^1.6.0",
     "request": "^2.88.0"
   },
   "license": "MIT",
-  "devDependencies": {
-  }
+  "devDependencies": {}
 }

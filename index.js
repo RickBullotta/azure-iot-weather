@@ -11,10 +11,18 @@ const ConnectionString = require('azure-iot-device').ConnectionString;
 const Message = require('azure-iot-device').Message;
 const Protocol = require('azure-iot-device-mqtt').Mqtt;
 
+// DPS and connection stuff
+
+const iotHubTransport = require('azure-iot-device-mqtt').Mqtt;
+
+var ProvisioningTransport = require('azure-iot-provisioning-device-mqtt').Mqtt;
+var SymmetricKeySecurityClient = require('azure-iot-security-symmetric-key').SymmetricKeySecurityClient;
+var ProvisioningDeviceClient = require('azure-iot-provisioning-device').ProvisioningDeviceClient;
+
+var provisioningHost = 'global.azure-devices-provisioning.net';
+
 var request = require('request');
 
-var messageId = 0;
-var deviceId;
 var client;
 var config;
 
@@ -28,8 +36,6 @@ function sendUpdatedTelemetry(telemetry) {
 	if (!sendingMessage) { return; }
   
 	var content = {
-	  messageId: ++messageId,
-	  deviceId: deviceId
 	};
   
 	var rawMessage = JSON.stringify(telemetry);
@@ -47,7 +53,7 @@ function sendUpdatedTelemetry(telemetry) {
   
 	client.sendEvent(message, (err) => {
 	  if (err) {
-		console.error('Failed to send telemtry to Azure IoT Hub');
+		console.error('Failed to send telemetry to Azure IoT Hub');
 	  } else {
 		if (config.infoOutboundMessages)
 		  console.info('Telemetry successfully sent to Azure IoT Hub');
@@ -140,7 +146,7 @@ function onStart(request, response) {
 
 	convertPayload(request);
 	
-	response.send(200, 'Successully start sending message to cloud', function (err) {
+	response.send(200, 'Successfully start sending message to cloud', function (err) {
 		if (err) {
 			console.error('[IoT hub Client] Failed sending a method response:\n' + err.message);
 		}
@@ -155,7 +161,7 @@ function onStop(request, response) {
 
 	convertPayload(request);
 	
-	response.send(200, 'Successully stop sending message to cloud', function (err) {
+	response.send(200, 'Successfully stop sending message to cloud', function (err) {
 		if (err) {
 			console.error('[IoT hub Client] Failed sending a method response:\n' + err.message);
 		}
@@ -174,28 +180,53 @@ function onReceiveMessage(msg) {
 	});
 }
 
-function initClient(connectionStringParam, credentialPath) {
-	var connectionString = ConnectionString.parse(connectionStringParam);
-	deviceId = connectionString.DeviceId;
+function initClient() {
 
-	// fromConnectionString must specify a transport constructor, coming from any transport package.
-	client = Client.fromConnectionString(connectionStringParam, Protocol);
+	// Start the device (connect it to Azure IoT Central).
+	try {
 
-	// Configure the client to use X509 authentication if required by the connection string.
-	if (connectionString.x509) {
-		// Read X.509 certificate and private key.
-		// These files should be in the current folder and use the following naming convention:
-		// [device name]-cert.pem and [device name]-key.pem, example: myraspberrypi-cert.pem
-		var connectionOptions = {
-			cert: fs.readFileSync(path.join(credentialPath, deviceId + '-cert.pem')).toString(),
-			key: fs.readFileSync(path.join(credentialPath, deviceId + '-key.pem')).toString()
-		};
+		var provisioningSecurityClient = new SymmetricKeySecurityClient(config.registrationId, config.symmetricKey);
+		var provisioningClient = ProvisioningDeviceClient.create(provisioningHost, config.idScope, new ProvisioningTransport(), provisioningSecurityClient);
 
-		client.setOptions(connectionOptions);
+		provisioningClient.register((err, result) => {
+			if (err) {
+				console.log('error registering device: ' + err);
+			} else {
+				console.log('registration succeeded');
+				console.log('assigned hub=' + result.assignedHub);
+				console.log('deviceId=' + result.deviceId);
 
-		console.debug('[Device] Using X.509 client certificate authentication');
+				var connectionString = 'HostName=' + result.assignedHub + ';DeviceId=' + result.deviceId + ';SharedAccessKey=' + config.symmetricKey;
+				client = Client.fromConnectionString(connectionString, iotHubTransport);
+			
+				client.open((err) => {
+					if (err) {
+						console.error('[IoT hub Client] Connect error: ' + err.message);
+						return;
+					}
+					else {
+						console.log('[IoT hub Client] Connected Successfully');
+					}
+			
+					// set C2D and device method callback
+					client.onDeviceMethod('start', onStart);
+					client.onDeviceMethod('stop', onStop);
+			
+					client.on('message', onReceiveMessage);
+			
+					checkLocation(client);
+			
+					setInterval(() => {
+						checkWeather(client);
+					}, config.interval);
+			
+				});
+			}
+		});
 	}
-	return client;
+	catch(err) {
+		console.log(err);
+	}
 }
 
 function checkLocation(client) {
@@ -263,44 +294,21 @@ function checkWeather(client) {
 			}
 		});
 	}
+	else {
+		console.log('No weather location settings received yet...')
+	}
 
 }
 
+// Read in configuration from config.json
 
-(function (connectionString) {
-	// read in configuration in config.json
-	try {
-		config = require('./config.json');
-	} catch (err) {
-		console.error('Failed to load config.json: ' + err.message);
-		return;
-	}
+try {
+	config = require('./config.json');
+} catch (err) {
+	console.error('Failed to load config.json: ' + err.message);
+	return;
+}
 
-	// create a client
-	// read out the connectionString from process environment
-	connectionString = connectionString || process.env['AzureIoTHubDeviceConnectionString'];
-	client = initClient(connectionString, config);
+// Initialize Azure IoT Client
 
-	client.open((err) => {
-		if (err) {
-			console.error('[IoT hub Client] Connect error: ' + err.message);
-			return;
-		}
-		else {
-			console.log('[IoT hub Client] Connected Successfully');
-		}
-
-		// set C2D and device method callback
-		client.onDeviceMethod('start', onStart);
-		client.onDeviceMethod('stop', onStop);
-
-		client.on('message', onReceiveMessage);
-
-		checkLocation(client);
-
-		setInterval(() => {
-			checkWeather(client);
-		}, config.interval);
-
-	});
-})(process.argv[2]);
+initClient();
