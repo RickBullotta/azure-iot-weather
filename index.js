@@ -185,7 +185,7 @@ function initClient() {
 	// Start the device (connect it to Azure IoT Central).
 	try {
 
-		var provisioningSecurityClient = new SymmetricKeySecurityClient(config.registrationId, config.symmetricKey);
+		var provisioningSecurityClient = new SymmetricKeySecurityClient(config.deviceId, config.symmetricKey);
 		var provisioningClient = ProvisioningDeviceClient.create(provisioningHost, config.idScope, new ProvisioningTransport(), provisioningSecurityClient);
 
 		provisioningClient.register((err, result) => {
