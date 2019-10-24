@@ -3,13 +3,8 @@
 */
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-
 const Client = require('azure-iot-device').Client;
-const ConnectionString = require('azure-iot-device').ConnectionString;
 const Message = require('azure-iot-device').Message;
-const Protocol = require('azure-iot-device-mqtt').Mqtt;
 
 // DPS and connection stuff
 
@@ -25,10 +20,10 @@ var request = require('request');
 
 var client;
 var config;
+var connect;
 
 var postalCode;
 var countryCode;
-
 
 var sendingMessage = true;
 
@@ -75,7 +70,7 @@ function convertPayload(request) {
 function getWeather(callback) {
 	var self = this;
 
-	var apiURL = "http://api.openweathermap.org/data/2.5/weather?zip=" + postalCode + "," + countryCode + "&units=imperial&APPID=" + config.apiKey;
+	var apiURL = "http://api.openweathermap.org/data/2.5/weather?zip=" + postalCode + "," + countryCode + "&units=imperial&APPID=" + connect.apiKey;
 
 	var jsonContent = {};
 
@@ -180,13 +175,28 @@ function onReceiveMessage(msg) {
 	});
 }
 
+function initBindings() {
+	// set C2D and device method callback
+	client.onDeviceMethod('start', onStart);
+	client.onDeviceMethod('stop', onStop);
+
+	client.on('message', onReceiveMessage);
+}
+
+function initLogic() {
+	checkLocation(client);
+			
+	setInterval(() => {
+		checkWeather(client);
+	}, config.interval);
+}
+
 function initClient() {
 
 	// Start the device (connect it to Azure IoT Central).
 	try {
-
-		var provisioningSecurityClient = new SymmetricKeySecurityClient(config.deviceId, config.symmetricKey);
-		var provisioningClient = ProvisioningDeviceClient.create(provisioningHost, config.idScope, new ProvisioningTransport(), provisioningSecurityClient);
+		var provisioningSecurityClient = new SymmetricKeySecurityClient(connect.deviceId, connect.symmetricKey);
+		var provisioningClient = ProvisioningDeviceClient.create(provisioningHost, connect.idScope, new ProvisioningTransport(), provisioningSecurityClient);
 
 		provisioningClient.register((err, result) => {
 			if (err) {
@@ -196,7 +206,7 @@ function initClient() {
 				console.log('assigned hub=' + result.assignedHub);
 				console.log('deviceId=' + result.deviceId);
 
-				var connectionString = 'HostName=' + result.assignedHub + ';DeviceId=' + result.deviceId + ';SharedAccessKey=' + config.symmetricKey;
+				var connectionString = 'HostName=' + result.assignedHub + ';DeviceId=' + result.deviceId + ';SharedAccessKey=' + connect.symmetricKey;
 				client = Client.fromConnectionString(connectionString, iotHubTransport);
 			
 				client.open((err) => {
@@ -207,19 +217,10 @@ function initClient() {
 					else {
 						console.log('[IoT hub Client] Connected Successfully');
 					}
-			
-					// set C2D and device method callback
-					client.onDeviceMethod('start', onStart);
-					client.onDeviceMethod('stop', onStop);
-			
-					client.on('message', onReceiveMessage);
-			
-					checkLocation(client);
-			
-					setInterval(() => {
-						checkWeather(client);
-					}, config.interval);
-			
+
+					initBindings();
+					
+					initLogic();
 				});
 			}
 		});
@@ -300,14 +301,33 @@ function checkWeather(client) {
 
 }
 
+function initDevice() {
+
+}
+
 // Read in configuration from config.json
 
 try {
 	config = require('./config.json');
 } catch (err) {
+	config = {};
 	console.error('Failed to load config.json: ' + err.message);
 	return;
 }
+
+// Read in connection details from connect.json
+
+try {
+	connect = require('./connect.json');
+} catch (err) {
+	connect = {};
+	console.error('Failed to load connect.json: ' + err.message);
+	return;
+}
+
+// Perform any device initialization
+
+initDevice();
 
 // Initialize Azure IoT Client
 
